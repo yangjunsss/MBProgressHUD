@@ -58,6 +58,8 @@ typedef enum {
 } MBProgressHUDAnimation;
 
 
+typedef void(^MBButtonTapBlock)(int);
+
 #ifndef MB_INSTANCETYPE
 #if __has_feature(objc_instancetype)
 	#define MB_INSTANCETYPE instancetype
@@ -414,6 +416,28 @@ typedef void (^MBProgressHUDCompletionBlock)();
  * Does nothing on pre iOS 5.
  */
 @property (MB_STRONG) UIColor *activityIndicatorColor;
+
+/**
+ * The color of button text.
+ */
+@property (MB_STRONG) UIColor *buttonTextColor;
+
+/**
+ * The color of button's background
+ */
+@property (MB_STRONG) UIColor *buttonBackgroundColor;
+
+@property (copy) MBButtonTapBlock buttonBlock;
+/**
+ * The number of buttons
+ */
+@property (assign) NSUInteger numOfButton;
+
+/**
+ * The title of buttons
+ */
+@property (MB_STRONG) NSArray *titlesOfButton;
+
 
 /** 
  * The progress of the progress indicator, from 0.0 to 1.0. Defaults to 0.0. 

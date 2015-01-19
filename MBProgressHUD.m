@@ -69,6 +69,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 @property (atomic, MB_STRONG) NSTimer *graceTimer;
 @property (atomic, MB_STRONG) NSTimer *minShowTimer;
 @property (atomic, MB_STRONG) NSDate *showStarted;
+@property (atomic, MB_STRONG) NSMutableArray *buttons;
 
 
 @end
@@ -107,6 +108,10 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 @synthesize progress;
 @synthesize size;
 @synthesize activityIndicatorColor;
+@synthesize buttonBackgroundColor;
+@synthesize buttonTextColor;
+@synthesize buttons;
+@synthesize titlesOfButton;
 #if NS_BLOCKS_AVAILABLE
 @synthesize completionBlock;
 #endif
@@ -178,6 +183,9 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 		self.detailsLabelFont = [UIFont boldSystemFontOfSize:kDetailsLabelFontSize];
 		self.detailsLabelColor = [UIColor whiteColor];
 		self.activityIndicatorColor = [UIColor whiteColor];
+        self.buttonTextColor = [UIColor blackColor];
+        self.buttonBackgroundColor = [UIColor whiteColor];
+        self.numOfButton = 0;
 		self.xOffset = 0.0f;
 		self.yOffset = 0.0f;
 		self.dimBackground = NO;
@@ -202,6 +210,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 		rotationTransform = CGAffineTransformIdentity;
 		
 		[self setupLabels];
+        [self setupButton];
 		[self updateIndicators];
 		[self registerForKVO];
 		[self registerForNotifications];
@@ -368,9 +377,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	[NSObject cancelPreviousPerformRequestsWithTarget:self];
 	isFinished = YES;
 	self.alpha = 0.0f;
-	if (removeFromSuperViewOnHide) {
-		[self removeFromSuperview];
-	}
+
 #if NS_BLOCKS_AVAILABLE
 	if (self.completionBlock) {
 		self.completionBlock();
@@ -380,6 +387,9 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	if ([delegate respondsToSelector:@selector(hudWasHidden:)]) {
 		[delegate performSelector:@selector(hudWasHidden:) withObject:self];
 	}
+    if (removeFromSuperViewOnHide) {
+        [self removeFromSuperview];
+    }
 }
 
 #pragma mark - Threading
@@ -477,6 +487,34 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 	[self addSubview:detailsLabel];
 }
 
+- (void)setupButton {
+    
+    for (UIButton *button in buttons) {
+        [button removeFromSuperview];
+    }
+    self.buttons = [NSMutableArray new];
+    for (int i=0; i< self.numOfButton; i++) {
+        UIButton *button = [[UIButton alloc] initWithFrame:self.bounds];
+        [button setBackgroundColor:self.buttonBackgroundColor];
+        [button setTitleColor:self.buttonTextColor forState:UIControlStateNormal];
+        [button addTarget:self action:@selector(clickButton:) forControlEvents:UIControlEventTouchUpInside];
+        [buttons addObject:button];
+        [self addSubview:button];
+    }
+}
+
+- (void)clickButton:(id)sender
+{
+    int i = 0;
+    for (UIButton *button in buttons) {
+        if (button == sender) {
+            self.buttonBlock(i);
+            return;
+        }
+        i++;
+    }
+}
+
 - (void)updateIndicators {
 	
 	BOOL isActivityIndicator = [indicator isKindOfClass:[UIActivityIndicatorView class]];
@@ -526,89 +564,110 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 #pragma mark - Layout
 
 - (void)layoutSubviews {
-	[super layoutSubviews];
-	
-	// Entirely cover the parent view
-	UIView *parent = self.superview;
-	if (parent) {
-		self.frame = parent.bounds;
-	}
-	CGRect bounds = self.bounds;
-	
-	// Determine the total widt and height needed
-	CGFloat maxWidth = bounds.size.width - 4 * margin;
-	CGSize totalSize = CGSizeZero;
-	
-	CGRect indicatorF = indicator.bounds;
-	indicatorF.size.width = MIN(indicatorF.size.width, maxWidth);
-	totalSize.width = MAX(totalSize.width, indicatorF.size.width);
-	totalSize.height += indicatorF.size.height;
-	
-	CGSize labelSize = MB_TEXTSIZE(label.text, label.font);
-	labelSize.width = MIN(labelSize.width, maxWidth);
-	totalSize.width = MAX(totalSize.width, labelSize.width);
-	totalSize.height += labelSize.height;
-	if (labelSize.height > 0.f && indicatorF.size.height > 0.f) {
-		totalSize.height += kPadding;
-	}
-
-	CGFloat remainingHeight = bounds.size.height - totalSize.height - kPadding - 4 * margin; 
-	CGSize maxSize = CGSizeMake(maxWidth, remainingHeight);
-	CGSize detailsLabelSize = MB_MULTILINE_TEXTSIZE(detailsLabel.text, detailsLabel.font, maxSize, detailsLabel.lineBreakMode);
-	totalSize.width = MAX(totalSize.width, detailsLabelSize.width);
-	totalSize.height += detailsLabelSize.height;
-	if (detailsLabelSize.height > 0.f && (indicatorF.size.height > 0.f || labelSize.height > 0.f)) {
-		totalSize.height += kPadding;
-	}
-	
-	totalSize.width += 2 * margin;
-	totalSize.height += 2 * margin;
-	
-	// Position elements
-	CGFloat yPos = round(((bounds.size.height - totalSize.height) / 2)) + margin + yOffset;
-	CGFloat xPos = xOffset;
-	indicatorF.origin.y = yPos;
-	indicatorF.origin.x = round((bounds.size.width - indicatorF.size.width) / 2) + xPos;
-	indicator.frame = indicatorF;
-	yPos += indicatorF.size.height;
-	
-	if (labelSize.height > 0.f && indicatorF.size.height > 0.f) {
-		yPos += kPadding;
-	}
-	CGRect labelF;
-	labelF.origin.y = yPos;
-	labelF.origin.x = round((bounds.size.width - labelSize.width) / 2) + xPos;
-	labelF.size = labelSize;
-	label.frame = labelF;
-	yPos += labelF.size.height;
-	
-	if (detailsLabelSize.height > 0.f && (indicatorF.size.height > 0.f || labelSize.height > 0.f)) {
-		yPos += kPadding;
-	}
-	CGRect detailsLabelF;
-	detailsLabelF.origin.y = yPos;
-	detailsLabelF.origin.x = round((bounds.size.width - detailsLabelSize.width) / 2) + xPos;
-	detailsLabelF.size = detailsLabelSize;
-	detailsLabel.frame = detailsLabelF;
-	
-	// Enforce minsize and quare rules
-	if (square) {
-		CGFloat max = MAX(totalSize.width, totalSize.height);
-		if (max <= bounds.size.width - 2 * margin) {
-			totalSize.width = max;
-		}
-		if (max <= bounds.size.height - 2 * margin) {
-			totalSize.height = max;
-		}
-	}
-	if (totalSize.width < minSize.width) {
-		totalSize.width = minSize.width;
-	} 
-	if (totalSize.height < minSize.height) {
-		totalSize.height = minSize.height;
-	}
-	
-	size = totalSize;
+    [super layoutSubviews];
+    
+    // Entirely cover the parent view
+    UIView *parent = self.superview;
+    if (parent) {
+        self.frame = parent.bounds;
+    }
+    CGRect bounds = self.bounds;
+    
+    // Determine the total widt and height needed
+    CGFloat maxWidth = bounds.size.width - 4 * margin;
+    CGSize totalSize = CGSizeZero;
+    
+    CGRect indicatorF = indicator.bounds;
+    indicatorF.size.width = MIN(indicatorF.size.width, maxWidth);
+    totalSize.width = MAX(totalSize.width, indicatorF.size.width);
+    totalSize.height += indicatorF.size.height;
+    
+    CGSize labelSize = MB_TEXTSIZE(label.text, label.font);
+    labelSize.width = MIN(labelSize.width, maxWidth);
+    totalSize.width = MAX(totalSize.width, labelSize.width);
+    totalSize.height += labelSize.height;
+    
+    CGSize buttonSize;
+    for (int i=0 ; i<[buttons count]; i++) {
+        UIButton *button = buttons[i];
+        [button setTitle:titlesOfButton[i] forState:UIControlStateNormal];
+        [button sizeToFit];
+        buttonSize.width += button.bounds.size.width;
+        buttonSize.height = MAX(button.bounds.size.height, buttonSize.height);
+    }
+    totalSize.height += buttonSize.height;
+    
+    if (labelSize.height > 0.f && indicatorF.size.height > 0.f) {
+        totalSize.height += kPadding;
+    }
+    
+    CGFloat remainingHeight = bounds.size.height - totalSize.height - kPadding - 4 * margin;
+    CGSize maxSize = CGSizeMake(maxWidth, remainingHeight);
+    CGSize detailsLabelSize = MB_MULTILINE_TEXTSIZE(detailsLabel.text, detailsLabel.font, maxSize, detailsLabel.lineBreakMode);
+    totalSize.width = MAX(totalSize.width, detailsLabelSize.width);
+    totalSize.height += detailsLabelSize.height;
+    if (detailsLabelSize.height > 0.f && (indicatorF.size.height > 0.f || labelSize.height > 0.f)) {
+        totalSize.height += kPadding;
+    }
+    
+    totalSize.width += 2 * margin;
+    totalSize.height += 2 * margin;
+    
+    // Position elements
+    CGFloat yPos = round(((bounds.size.height - totalSize.height) / 2)) + margin + yOffset;
+    CGFloat xPos = xOffset;
+    indicatorF.origin.y = yPos;
+    indicatorF.origin.x = round((bounds.size.width - indicatorF.size.width) / 2) + xPos;
+    indicator.frame = indicatorF;
+    yPos += indicatorF.size.height;
+    
+    if (labelSize.height > 0.f && indicatorF.size.height > 0.f) {
+        yPos += kPadding;
+    }
+    CGRect labelF;
+    labelF.origin.y = yPos;
+    labelF.origin.x = round((bounds.size.width - labelSize.width) / 2) + xPos;
+    labelF.size = labelSize;
+    label.frame = labelF;
+    yPos += labelF.size.height;
+    
+    if (detailsLabelSize.height > 0.f && (indicatorF.size.height > 0.f || labelSize.height > 0.f)) {
+        yPos += kPadding;
+    }
+    CGRect detailsLabelF;
+    detailsLabelF.origin.y = yPos;
+    detailsLabelF.origin.x = round((bounds.size.width - detailsLabelSize.width) / 2) + xPos;
+    detailsLabelF.size = detailsLabelSize;
+    detailsLabel.frame = detailsLabelF;
+    
+    if (buttonSize.height > 0.f && (labelSize.height > 0.f || detailsLabelSize.height > 0.f)) {
+        yPos += kPadding;
+    }
+    CGRect buttonF;
+    buttonF.origin.y = yPos;
+    buttonF.origin.x = round((bounds.size.width - buttonSize.width) / 2) + xPos;
+    buttonF.size = buttonSize;
+    for (UIButton *button in buttons) {
+        button.frame = buttonF;
+    }
+    // Enforce minsize and quare rules
+    if (square) {
+        CGFloat max = MAX(totalSize.width, totalSize.height);
+        if (max <= bounds.size.width - 2 * margin) {
+            totalSize.width = max;
+        }
+        if (max <= bounds.size.height - 2 * margin) {
+            totalSize.height = max;
+        }
+    }
+    if (totalSize.width < minSize.width) {
+        totalSize.width = minSize.width;
+    } 
+    if (totalSize.height < minSize.height) {
+        totalSize.height = minSize.height;
+    }
+    
+    size = totalSize;
 }
 
 #pragma mark BG Drawing
@@ -679,7 +738,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 
 - (NSArray *)observableKeypaths {
 	return [NSArray arrayWithObjects:@"mode", @"customView", @"labelText", @"labelFont", @"labelColor",
-			@"detailsLabelText", @"detailsLabelFont", @"detailsLabelColor", @"progress", @"activityIndicatorColor", nil];
+			@"detailsLabelText", @"detailsLabelFont", @"detailsLabelColor", @"progress", @"activityIndicatorColor", @"numOfButton",nil];
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
@@ -711,7 +770,9 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 			[(id)indicator setValue:@(progress) forKey:@"progress"];
 		}
 		return;
-	}
+    } else if ( [keyPath isEqualToString:@"numOfButton"]){
+        [self setupButton];
+    }
 	[self setNeedsLayout];
 	[self setNeedsDisplay];
 }
