@@ -119,6 +119,9 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 #pragma mark - Class methods
 
 + (MB_INSTANCETYPE)showHUDAddedTo:(UIView *)view animated:(BOOL)animated {
+    if (view == nil) {
+        view = [[UIApplication sharedApplication].delegate window];
+    }
 	MBProgressHUD *hud = [[self alloc] initWithView:view];
 	hud.removeFromSuperViewOnHide = YES;
 	[view addSubview:hud];
@@ -127,6 +130,9 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 }
 
 + (BOOL)hideHUDForView:(UIView *)view animated:(BOOL)animated {
+    if (view == nil) {
+        view = [[UIApplication sharedApplication].delegate window];
+    }
 	MBProgressHUD *hud = [self HUDForView:view];
 	if (hud != nil) {
 		hud.removeFromSuperViewOnHide = YES;
@@ -185,7 +191,6 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 		self.activityIndicatorColor = [UIColor whiteColor];
         self.buttonTextColor = [UIColor blackColor];
         self.buttonBackgroundColor = [UIColor whiteColor];
-        self.numOfButton = 0;
 		self.xOffset = 0.0f;
 		self.yOffset = 0.0f;
 		self.dimBackground = NO;
@@ -493,26 +498,28 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
         [button removeFromSuperview];
     }
     self.buttons = [NSMutableArray new];
-    for (int i=0; i< self.numOfButton; i++) {
-        UIButton *button = [[UIButton alloc] initWithFrame:self.bounds];
+    CGRect bounds = self.bounds;
+    for (int i=0; i< [self.titlesOfButton count]; i++) {
+        UIButton *button = [[UIButton alloc] initWithFrame:bounds];
+        button.layer.cornerRadius = 3.0f;
         [button setBackgroundColor:self.buttonBackgroundColor];
         [button setTitleColor:self.buttonTextColor forState:UIControlStateNormal];
         [button addTarget:self action:@selector(clickButton:) forControlEvents:UIControlEventTouchUpInside];
         [buttons addObject:button];
         [self addSubview:button];
     }
+    
 }
 
 - (void)clickButton:(id)sender
 {
-    int i = 0;
-    for (UIButton *button in buttons) {
-        if (button == sender) {
-            self.buttonBlock(i);
-            return;
+    [self hide:YES];
+    [buttons enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        if (obj == sender) {
+            self.buttonBlock(idx);
+            *stop = YES;
         }
-        i++;
-    }
+    }];
 }
 
 - (void)updateIndicators {
@@ -594,8 +601,10 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
         [button sizeToFit];
         buttonSize.width += button.bounds.size.width;
         buttonSize.height = MAX(button.bounds.size.height, buttonSize.height);
+        totalSize.width = MAX(totalSize.width, buttonSize.width);
+        totalSize.height += buttonSize.height;
     }
-    totalSize.height += buttonSize.height;
+    
     
     if (labelSize.height > 0.f && indicatorF.size.height > 0.f) {
         totalSize.height += kPadding;
@@ -643,12 +652,14 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
     if (buttonSize.height > 0.f && (labelSize.height > 0.f || detailsLabelSize.height > 0.f)) {
         yPos += kPadding;
     }
-    CGRect buttonF;
-    buttonF.origin.y = yPos;
-    buttonF.origin.x = round((bounds.size.width - buttonSize.width) / 2) + xPos;
-    buttonF.size = buttonSize;
+    
     for (UIButton *button in buttons) {
+        CGRect buttonF;
+        buttonF.origin.y = yPos;
+        buttonF.origin.x = round((bounds.size.width - buttonSize.width) / 2) + xPos;
+        buttonF.size = buttonSize;
         button.frame = buttonF;
+        yPos += buttonF.size.height + kPadding;
     }
     // Enforce minsize and quare rules
     if (square) {
@@ -738,7 +749,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 
 - (NSArray *)observableKeypaths {
 	return [NSArray arrayWithObjects:@"mode", @"customView", @"labelText", @"labelFont", @"labelColor",
-			@"detailsLabelText", @"detailsLabelFont", @"detailsLabelColor", @"progress", @"activityIndicatorColor", @"numOfButton",nil];
+			@"detailsLabelText", @"detailsLabelFont", @"detailsLabelColor", @"progress", @"activityIndicatorColor", @"titlesOfButton",nil];
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
@@ -770,7 +781,7 @@ static const CGFloat kDetailsLabelFontSize = 12.f;
 			[(id)indicator setValue:@(progress) forKey:@"progress"];
 		}
 		return;
-    } else if ( [keyPath isEqualToString:@"numOfButton"]){
+    } else if ( [keyPath isEqualToString:@"titlesOfButton"]){
         [self setupButton];
     }
 	[self setNeedsLayout];

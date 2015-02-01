@@ -58,7 +58,7 @@ typedef enum {
 } MBProgressHUDAnimation;
 
 
-typedef void(^MBButtonTapBlock)(int);
+typedef void(^MBButtonTapBlock)(NSUInteger);
 
 #ifndef MB_INSTANCETYPE
 #if __has_feature(objc_instancetype)
@@ -428,10 +428,6 @@ typedef void (^MBProgressHUDCompletionBlock)();
 @property (MB_STRONG) UIColor *buttonBackgroundColor;
 
 @property (copy) MBButtonTapBlock buttonBlock;
-/**
- * The number of buttons
- */
-@property (assign) NSUInteger numOfButton;
 
 /**
  * The title of buttons

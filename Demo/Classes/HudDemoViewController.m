@@ -249,15 +249,14 @@
 	[HUD showWhileExecuting:@selector(myTask) onTarget:self withObject:nil animated:YES];	
 }
 
-- (IBAction)showOKButton:(id)sender {
+- (IBAction)showButtons:(id)sender {
     HUD = [[MBProgressHUD alloc] initWithView:self.navigationController.view];
 	[self.navigationController.view addSubview:HUD];
-    HUD.numOfButton = 1;
 	HUD.mode = MBProgressHUDModeText;
 	HUD.labelText = @"Hello";
-	HUD.titlesOfButton = @[@"ok"];
-    HUD.buttonBlock = ^(int index){
-        [HUD hide:YES];
+	HUD.titlesOfButton = @[@"ok",@"cancel"];
+    HUD.buttonBlock = ^(NSUInteger index){
+		
     };
     [HUD show:YES];
 }
